@@ -177,10 +177,17 @@ init([{SockMod, Socket}, Opts]) ->
                   undefined -> [];
                   CertFile -> [{certfile, CertFile}]
 	      end,
+    TLSOpts2 = case ejabberd_config:get_option(
+                     cipher_specification,
+                     fun iolist_to_binary/1, undefined) of
+                  undefined -> [];
+                  CipherSpec -> [{cipher_specification, CipherSpec} | TLSOpts1]
+	      end,
     TLSOpts = case proplists:get_bool(tls_compression, Opts) of
-                  false -> [compression_none | TLSOpts1];
-                  true -> TLSOpts1
+                  false -> [compression_none | TLSOpts2];
+                  true -> TLSOpts2
               end,
+    ?DEBUG("TLSOpts: ~p", [TLSOpts]),
     Timer = erlang:start_timer(?S2STIMEOUT, self(), []),
     {ok, wait_for_stream,
      #state{socket = Socket, sockmod = SockMod,
@@ -334,6 +341,14 @@ wait_for_feature_request({xmlstreamelement, El},
 			  [{certfile, CertFile} | lists:keydelete(certfile, 1,
 								  StateData#state.tls_options)]
 		    end,
+%          TLSOpts2 = case ejabberd_config:get_option(
+%                            {cipher_specification, StateData#state.server},
+%                            fun iolist_to_binary/1, undefined)  of
+%                        undefined -> StateData#state.tls_options;
+%                        CipherSpec ->
+%                             [{cipher_specification, CipherSpec} | lists:keydelete(cipher_specification, 1,
+%								  TLSOpts1)]
+%                     end,
           TLSOpts = case ejabberd_config:get_option(
                            {s2s_tls_compression, StateData#state.server},
                            fun(true) -> true;
